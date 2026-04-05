@@ -1,8 +1,9 @@
+import logging
+
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession, FreelancerUser
-from app.utils.rate_limit import AUTH_LIMIT, limiter
 from app.config import settings
 from app.models.user import User, UserRole
 from app.schemas.user import (
@@ -15,7 +16,10 @@ from app.schemas.user import (
 )
 from app.services import stripe_service
 from app.utils.exceptions import BadRequestError, UnauthorizedError
+from app.utils.rate_limit import AUTH_LIMIT, limiter
 from app.utils.security import create_access_token, hash_password, verify_password
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -34,11 +38,18 @@ async def register(request: Request, body: UserCreate, db: DbSession) -> AuthRes
         role=body.role,
     )
 
+    # Stripe account creation is optional — don't block signup if it fails
     if body.role == UserRole.FREELANCER:
-        user.stripe_account_id = await stripe_service.create_connect_account(body.email)
+        try:
+            user.stripe_account_id = await stripe_service.create_connect_account(body.email)
+        except Exception:
+            logger.warning("Stripe Connect account creation failed for %s — user can set up later", body.email)
 
     if body.role == UserRole.CLIENT:
-        user.stripe_customer_id = await stripe_service.create_customer(body.email)
+        try:
+            user.stripe_customer_id = await stripe_service.create_customer(body.email)
+        except Exception:
+            logger.warning("Stripe Customer creation failed for %s — user can set up later", body.email)
 
     db.add(user)
     await db.flush()
@@ -79,7 +90,7 @@ async def create_onboarding_link(
     current_user: FreelancerUser,
 ) -> OnboardingLinkResponse:
     if not current_user.stripe_account_id:
-        raise BadRequestError("No Stripe Connect account found")
+        raise BadRequestError("No Stripe Connect account found. Please contact support.")
 
     return_url = f"{settings.frontend_url}/dashboard/settings?stripe_onboarding=complete"
     refresh_url = f"{settings.frontend_url}/dashboard/settings?stripe_onboarding=refresh"
