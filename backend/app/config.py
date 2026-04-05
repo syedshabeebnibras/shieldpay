@@ -38,6 +38,24 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment == "production"
 
+    @field_validator("database_url")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        # Railway provides postgresql://, we need postgresql+asyncpg://
+        if v.startswith("postgresql://"):
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
+
+    @field_validator("frontend_url")
+    @classmethod
+    def fix_frontend_url(cls, v: str) -> str:
+        # Ensure URL has scheme
+        if v and not v.startswith("http"):
+            v = f"https://{v}"
+        return v.rstrip("/")
+
     @field_validator("jwt_secret")
     @classmethod
     def jwt_secret_must_be_secure(cls, v: str) -> str:

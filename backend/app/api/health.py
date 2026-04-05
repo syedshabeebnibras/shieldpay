@@ -1,18 +1,22 @@
 from fastapi import APIRouter
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.api.deps import DbSession
 from app.config import settings
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-async def health_check(db: DbSession) -> dict:
+async def health_check() -> dict:
+    """Health check that doesn't depend on the DB session dependency."""
     db_ok = False
     try:
-        await db.execute(text("SELECT 1"))
-        db_ok = True
+        engine = create_async_engine(settings.database_url, pool_size=1)
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            db_ok = True
+        await engine.dispose()
     except Exception:
         pass
 
