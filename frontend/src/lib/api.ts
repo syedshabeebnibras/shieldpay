@@ -25,7 +25,16 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // Don't auto-redirect on 401 — let useAuth handle it
+    if (
+      error.response?.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login") &&
+      !window.location.pathname.startsWith("/register")
+    ) {
+      localStorage.removeItem(TOKEN_KEY);
+      document.cookie = "token=; path=/; max-age=0";
+      window.location.href = "/login";
+    }
     return Promise.reject(error);
   },
 );

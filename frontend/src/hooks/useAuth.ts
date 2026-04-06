@@ -17,18 +17,8 @@ interface LoginData {
   password: string;
 }
 
-// Backend returns snake_case — define raw response shape
 interface ApiAuthResponse {
-  user: {
-    id: string;
-    email: string;
-    full_name: string;
-    role: UserRole;
-    is_verified: boolean;
-    stripe_account_id: string | null;
-    stripe_customer_id: string | null;
-    created_at: string;
-  };
+  user: ApiUser;
   access_token: string;
   token_type: string;
 }
@@ -57,6 +47,18 @@ function mapUser(raw: ApiUser): User {
   };
 }
 
+async function setAuthCookie(token: string) {
+  await fetch("/api/auth/set-cookie", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+}
+
+async function clearAuthCookie() {
+  await fetch("/api/auth/logout", { method: "POST" });
+}
+
 export function useAuth() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -77,6 +79,7 @@ export function useAuth() {
       setUser(mapUser(data));
     } catch {
       localStorage.removeItem(TOKEN_KEY);
+      await clearAuthCookie();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -96,7 +99,11 @@ export function useAuth() {
         full_name: body.fullName,
         role: body.role,
       });
+
+      // Store token in both localStorage (for API calls) and cookie (for middleware)
       localStorage.setItem(TOKEN_KEY, data.access_token);
+      await setAuthCookie(data.access_token);
+
       setUser(mapUser(data.user));
       return data;
     } catch (err: unknown) {
@@ -113,7 +120,11 @@ export function useAuth() {
         email: body.email,
         password: body.password,
       });
+
+      // Store token in both localStorage (for API calls) and cookie (for middleware)
       localStorage.setItem(TOKEN_KEY, data.access_token);
+      await setAuthCookie(data.access_token);
+
       setUser(mapUser(data.user));
       return data;
     } catch (err: unknown) {
@@ -123,8 +134,9 @@ export function useAuth() {
     }
   };
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     localStorage.removeItem(TOKEN_KEY);
+    await clearAuthCookie();
     setUser(null);
     router.push("/login");
   }, [router]);
