@@ -46,7 +46,7 @@ export default function RegisterPage() {
     try {
       const data = await register({ email, password, fullName, role });
 
-      if (role === "freelancer" && data?.user.stripeAccountId) {
+      if (role === "freelancer" && data?.user.stripe_account_id) {
         try {
           const { data: link } = await api.post<OnboardingLinkResponse>(
             "/api/auth/stripe/onboarding-link",

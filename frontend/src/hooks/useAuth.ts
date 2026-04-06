@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, TOKEN_KEY } from "@/lib/api";
-import type { AuthResponse, User, UserRole } from "@/types";
+import type { User, UserRole } from "@/types";
 
 interface RegisterData {
   email: string;
@@ -15,6 +15,46 @@ interface RegisterData {
 interface LoginData {
   email: string;
   password: string;
+}
+
+// Backend returns snake_case — define raw response shape
+interface ApiAuthResponse {
+  user: {
+    id: string;
+    email: string;
+    full_name: string;
+    role: UserRole;
+    is_verified: boolean;
+    stripe_account_id: string | null;
+    stripe_customer_id: string | null;
+    created_at: string;
+  };
+  access_token: string;
+  token_type: string;
+}
+
+interface ApiUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  is_verified: boolean;
+  stripe_account_id: string | null;
+  stripe_customer_id: string | null;
+  created_at: string;
+}
+
+function mapUser(raw: ApiUser): User {
+  return {
+    id: raw.id,
+    email: raw.email,
+    fullName: raw.full_name,
+    role: raw.role,
+    isVerified: raw.is_verified,
+    stripeAccountId: raw.stripe_account_id,
+    stripeCustomerId: raw.stripe_customer_id,
+    createdAt: raw.created_at,
+  };
 }
 
 export function useAuth() {
@@ -33,8 +73,8 @@ export function useAuth() {
     }
 
     try {
-      const { data } = await api.get<User>("/api/auth/me");
-      setUser(data);
+      const { data } = await api.get<ApiUser>("/api/auth/me");
+      setUser(mapUser(data));
     } catch {
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
@@ -50,14 +90,14 @@ export function useAuth() {
   const register = async (body: RegisterData) => {
     setError(null);
     try {
-      const { data } = await api.post<AuthResponse>("/api/auth/register", {
+      const { data } = await api.post<ApiAuthResponse>("/api/auth/register", {
         email: body.email,
         password: body.password,
         full_name: body.fullName,
         role: body.role,
       });
-      localStorage.setItem(TOKEN_KEY, data.accessToken);
-      setUser(data.user);
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      setUser(mapUser(data.user));
       return data;
     } catch (err: unknown) {
       const message = extractError(err);
@@ -69,12 +109,12 @@ export function useAuth() {
   const login = async (body: LoginData) => {
     setError(null);
     try {
-      const { data } = await api.post<AuthResponse>("/api/auth/login", {
+      const { data } = await api.post<ApiAuthResponse>("/api/auth/login", {
         email: body.email,
         password: body.password,
       });
-      localStorage.setItem(TOKEN_KEY, data.accessToken);
-      setUser(data.user);
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      setUser(mapUser(data.user));
       return data;
     } catch (err: unknown) {
       const message = extractError(err);
