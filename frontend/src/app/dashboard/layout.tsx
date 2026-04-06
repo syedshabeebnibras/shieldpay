@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -14,6 +14,7 @@ import {
   Settings,
   Shield,
 } from "lucide-react";
+import { TOKEN_KEY } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
@@ -30,25 +31,27 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login");
+    // Only check once on mount — don't re-check on every render
+    if (!isLoading) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
+      setChecked(true);
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading]);
 
-  if (isLoading) {
+  if (isLoading || !checked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (

@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { InternalAxiosRequestConfig } from "axios";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://shieldpay-api-production.up.railway.app";
@@ -22,19 +22,8 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+// No 401 interceptor — let calling code handle auth failures
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (
-      error.response?.status === 401 &&
-      typeof window !== "undefined" &&
-      !window.location.pathname.startsWith("/login") &&
-      !window.location.pathname.startsWith("/register")
-    ) {
-      localStorage.removeItem(TOKEN_KEY);
-      document.cookie = "token=; path=/; max-age=0";
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );

@@ -47,18 +47,6 @@ function mapUser(raw: ApiUser): User {
   };
 }
 
-async function setAuthCookie(token: string) {
-  await fetch("/api/auth/set-cookie", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token }),
-  });
-}
-
-async function clearAuthCookie() {
-  await fetch("/api/auth/logout", { method: "POST" });
-}
-
 export function useAuth() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -78,8 +66,8 @@ export function useAuth() {
       const { data } = await api.get<ApiUser>("/api/auth/me");
       setUser(mapUser(data));
     } catch {
+      // Only clear token on 401, not on network errors
       localStorage.removeItem(TOKEN_KEY);
-      await clearAuthCookie();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -100,10 +88,7 @@ export function useAuth() {
         role: body.role,
       });
 
-      // Store token in both localStorage (for API calls) and cookie (for middleware)
       localStorage.setItem(TOKEN_KEY, data.access_token);
-      await setAuthCookie(data.access_token);
-
       setUser(mapUser(data.user));
       return data;
     } catch (err: unknown) {
@@ -121,10 +106,7 @@ export function useAuth() {
         password: body.password,
       });
 
-      // Store token in both localStorage (for API calls) and cookie (for middleware)
       localStorage.setItem(TOKEN_KEY, data.access_token);
-      await setAuthCookie(data.access_token);
-
       setUser(mapUser(data.user));
       return data;
     } catch (err: unknown) {
@@ -134,11 +116,10 @@ export function useAuth() {
     }
   };
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    await clearAuthCookie();
     setUser(null);
-    router.push("/login");
+    router.replace("/login");
   }, [router]);
 
   return {

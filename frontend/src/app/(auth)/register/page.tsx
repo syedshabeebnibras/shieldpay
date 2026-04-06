@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import type { OnboardingLinkResponse, UserRole } from "@/types";
 
 export default function RegisterPage() {
-  const router = useRouter();
+  useRouter(); // keep import for Next.js prefetching
   const { register } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -58,7 +58,8 @@ export default function RegisterPage() {
         }
       }
 
-      router.push("/dashboard");
+      await new Promise((r) => setTimeout(r, 50));
+      window.location.href = "/dashboard";
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("Registration failed");

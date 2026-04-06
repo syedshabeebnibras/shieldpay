@@ -8,7 +8,7 @@ import { Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
-  const router = useRouter();
+  useRouter();
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -29,7 +29,9 @@ export default function LoginPage() {
 
     try {
       await login({ email, password });
-      router.push("/dashboard");
+      // Ensure localStorage is flushed before navigating
+      await new Promise((r) => setTimeout(r, 50));
+      window.location.href = "/dashboard";
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("Login failed");
