@@ -25,14 +25,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (
-      error.response?.status === 401 &&
-      typeof window !== "undefined" &&
-      !window.location.pathname.startsWith("/login")
-    ) {
-      localStorage.removeItem(TOKEN_KEY);
-      window.location.href = "/login";
-    }
+    // Don't auto-redirect on 401 — let useAuth handle it
     return Promise.reject(error);
   },
 );
